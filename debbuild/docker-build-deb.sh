@@ -19,8 +19,6 @@ if [ $(id -u) != "$extuid" ]; then
   exit 0
 fi
 
-bash
-exit 0
 cd ${BUILD_ROOT}/BUILD/
 echo "Cleaning grpc source tree..."
 dh clean

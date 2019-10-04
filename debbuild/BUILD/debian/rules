@@ -37,18 +37,23 @@ ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
     NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
     PAROPTS = -j$(NUMJOBS)
 else
-    PAROPTS =
+    PAROPTS = -j4
 endif
 # end DEB_BUILD_OPTIONS
 
 version=0.0.0
 major=0
 
+BUILD_DIR=$(CURDIR)/protobuf/
+
 configure: configure-stamp
 configure-stamp:
 	dh_testdir
 	# Add here commands to configure the package.
 	dh_auto_configure
+	cd $(BUILD_DIR)/; \
+	./autogen.sh 
+	cd $(BUILD_DIR)/; \
 	./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var
 	touch configure-stamp
 
@@ -60,24 +65,24 @@ build-arch: build-arch-stamp
 build-arch-stamp: configure-stamp
 
 	# Add here commands to compile the arch part of the package.
-	$(MAKE) $(PAROPTS)
+	$(MAKE) -C $(BUILD_DIR) $(PAROPTS)
 
 	# run the test suite
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	$(MAKE) $(PAROPTS) check
+	$(MAKE) -C $(BUILD_DIR) $(PAROPTS) check
 endif
 
 	# python bindings
-	cd python && \
+	cd $(BUILD_DIR)/python && \
 	  PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp python setup.py build
 
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 	# run tests via pure-python
-	cd python && \
-	  PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python python setup.py test
+	#cd $(BUILD_DIR)/python && \
+	#  PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python python setup.py test
 	# run tests via the CPP implementation
-	cd python && \
-	  PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp python setup.py test
+	#cd $(BUILD_DIR)/python && \
+	#  PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp python setup.py test
 endif
 
 	# build the protoc manpage
@@ -100,13 +105,13 @@ clean:
 	rm -f build-arch-stamp build-indep-stamp configure-stamp
 
 	# C++ bindings cleanups
-	[ ! -f Makefile ] || $(MAKE) distclean
+	[ ! -f Makefile ] || $(MAKE) -C $(BUILD_DIR) distclean
 
 	# remove the built manpage
 	rm -f protoc.1
 
 	# Python bindings cleanups
-	cd python && python setup.py clean --all
+	cd $(BUILD_DIR)/python && python setup.py clean --all
 	rm -rf python/protobuf.egg-info
 
 	# Java bindings cleanups
@@ -132,9 +137,9 @@ install-arch: build-arch
 
 	# Add here commands to install the arch part of the package into
 	# debian/tmp.
-	$(MAKE) DESTDIR=$(CURDIR)/debian/tmp install
+	$(MAKE) -C $(BUILD_DIR) DESTDIR=$(CURDIR)/debian/tmp install
 
-	dh_install --sourcedir=debian/tmp -s
+	dh_install --sourcedir=debian/tmp
 
 	# convert doc dir to symlink for the dev packages
 	rm -rf $(CURDIR)/debian/libprotobuf-dev/usr/share/doc/libprotobuf-dev
@@ -146,7 +151,7 @@ install-arch: build-arch
 	rm -rf $(CURDIR)/debian/libprotobuf-dev/usr/include/google/protobuf/compiler
 
 	# python bindings
-	cd python && PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp \
+	cd $(BUILD_DIR)/python && PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp \
 	  python setup.py install --no-compile \
 	    --root=$(CURDIR)/debian/python-protobuf \
 	    --install-layout=deb ; \
@@ -163,7 +168,7 @@ install-arch: build-arch
 binary-common:
 	dh_testdir
 	dh_testroot
-	dh_installchangelogs CHANGES.txt
+	#dh_installchangelogs CHANGES.txt
 	dh_installdocs
 	dh_installexamples
 	dh_installman
@@ -173,7 +178,7 @@ binary-common:
 	dh_fixperms
 	dh_makeshlibs
 	dh_installdeb
-	dh_shlibdeps
+	#dh_shlibdeps -l$(CURDIR)/debian/tmp/usr/lib
 	dh_gencontrol
 	dh_md5sums
 	dh_builddeb
@@ -184,7 +189,7 @@ binary-indep: install-indep
 
 # Build architecture dependant packages using the common target.
 binary-arch: install-arch
-	$(MAKE) -f debian/rules DH_OPTIONS=-s binary-common
+	$(MAKE) -f debian/rules binary-common
 
 binary: binary-arch binary-indep
 .PHONY: build clean binary-indep binary-arch binary install install-indep install-arch configure
