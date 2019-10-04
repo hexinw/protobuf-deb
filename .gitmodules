@@ -1,0 +1,3 @@
+[submodule "debbuild/BUILD/protobuf"]
+	path = debbuild/BUILD/protobuf
+	url = https://github.com/google/protobuf.git

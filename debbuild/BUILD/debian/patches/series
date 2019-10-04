@@ -1,0 +1,5 @@
+# comment to keep empty file in the diff.gz
+disable-setuptools-download.diff
+arm_optimization.diff
+link-pthread.diff
+autogen.diff
